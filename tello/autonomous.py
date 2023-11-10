@@ -1,5 +1,6 @@
 import struct
-
+from djitellopy import Tello
+import djitellopy as dp
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,6 +33,56 @@ building_positions = [Buildings("School", 30, 107, 24, 18, 18, 'r'),
                       Buildings("avr landing", 180, 50, 0, 5.730, 5.730, 'c'),
                       Buildings("field", 0, 0, 0, 472, 170, 'ir'),
                       Buildings("final doc", 292, 85, 32, 36, 69, 'cs')]
+
+def move_over_500(dist, drone, speed):
+    try:
+        if round(dist[0]).__abs__()<500 and round(dist[1]).__abs__():
+            drone.go_xyz_speed(round(dist[0]).__abs__()+25, round(dist[1]).__abs__(), 0, speed)
+        else:
+            drone.go_xyz_speed(0,-round(dist[1]).__abs__()-50,0,speed)
+            i = round(dist[0]+85).__abs__()
+            while True:
+                drone.go_xyz_speed(500, 0, 0, speed)
+                i-=500
+                if i<=500:
+                    drone.go_xyz_speed(i, 0, 0, speed)
+                    break
+    except dp.tello.TelloException as exception:
+        raise exception("Move forward isn't working")
+
+def move_to_location(all_loc: dict, start_loc: str, end_loc: str, drone: Tello, height, speed) -> [int | float, int | float, int | float, int | float]:
+    start_position = []
+    start_height = float(height)
+    end_position = []
+    end_height = None
+    pos_difference = []
+    
+    if all_loc.__contains__(start_loc) and all_loc.__contains__(end_loc):
+        
+        start_position = [all_loc[start_loc][0]+all_loc[start_loc][3]/2, all_loc[start_loc][1]+all_loc[start_loc][4]/2]
+
+        end_position = [all_loc[end_loc][0]+(all_loc[end_loc][3]/2), all_loc[end_loc][1]+(all_loc[end_loc][4]/2)]
+        end_height = int(25+all_loc[end_loc][2])
+    
+    print(end_position[0]-start_position[0])
+
+    pos_difference = [round(end_position[0])-round(start_position[0]+25), round(end_position[1]-start_position[1]+25), round(end_height-start_height)]
+    
+    for a in all_loc.keys():
+        try:
+            if drone.get_height()<=round(all_loc[a][1]).__pos__() and height<=end_height+10:
+                if (start_position[0] <= all_loc[a][0] <= end_position[0] or start_position[0] >= all_loc[a][0] <= end_position[0]) and round(all_loc[a][2]+5).__abs__()-height>=0:
+                    drone.go_xyz_speed(0,0, round(all_loc[a][2]+5).__abs__()-height, 10)
+                    
+                    height+=round(all_loc[a][2]).__pos__()-height
+        except WindowsError as win:
+            raise win("Sys crash")
+    
+    print((drone.get_height()/2.54)/12)
+    move_over_500(pos_difference, drone, speed)
+    
+    return [round(pos_difference[0]).__abs__(), round(pos_difference[1]).__abs__(), -1*drone.get_height(), speed]
+    
 
 class Auto(object):
     
